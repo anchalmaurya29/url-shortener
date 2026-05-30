@@ -343,6 +343,14 @@
             <input class="url-input" id="urlInput" type="url" placeholder="Paste your long URL here..." />
             <button class="shorten-btn" id="btn" onclick="shortenUrl()">Shorten →</button>
         </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+            <div style="flex:1; display:flex; align-items:center; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding: 0 16px;">
+                <span style="color:rgba(255,255,255,0.3); font-size:0.9rem; white-space:nowrap;">localhost:8080/</span>
+                <input id="aliasInput" type="text"
+                       style="flex:1; padding:14px 8px; background:transparent; border:none; color:#fff; font-size:0.9rem; outline:none;"
+                       placeholder="custom-alias (optional)" maxlength="20"/>
+            </div>
+        </div>
 
         <div class="error-box" id="err"></div>
 
@@ -552,8 +560,10 @@
             const res = await fetch('/api/shorten', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ longUrl: url })
-            });
+                body: JSON.stringify({
+                    longUrl: url,
+                    customAlias: document.getElementById('aliasInput').value.trim() || null
+                })            });
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Something went wrong');
