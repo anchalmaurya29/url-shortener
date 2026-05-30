@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #000008;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Galaxy Canvas */
+        #galaxy {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+        }
+
+        .content {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 680px;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Header */
+        .logo {
+            font-size: 3.2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+            text-shadow: none;
+            filter: drop-shadow(0 0 30px rgba(167,139,250,0.4));
+        }
+
+        .tagline {
+            color: rgba(255,255,255,0.45);
+            font-size: 1rem;
+            margin-bottom: 48px;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        /* Glass Card */
+        .glass {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 36px;
+            width: 100%;
+            box-shadow: 0 8px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        /* Input row */
+        .input-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .url-input::placeholder { color: rgba(255,255,255,0.25); }
+
+        .url-input:focus {
+            border-color: rgba(167,139,250,0.6);
+            background: rgba(167,139,250,0.07);
+            box-shadow: 0 0 0 3px rgba(167,139,250,0.12);
+        }
+
+        .shorten-btn {
+            padding: 16px 28px;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            box-shadow: 0 4px 24px rgba(124,58,237,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shorten-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.5s;
+        }
+
+        .shorten-btn:hover::before { left: 100%; }
+        .shorten-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,58,237,0.5); }
+        .shorten-btn:active { transform: translateY(0); }
+        .shorten-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Error */
+        .error-box {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #fca5a5;
+            font-size: 0.9rem;
+            display: none;
+            margin-bottom: 16px;
+        }
+        .error-box.show { display: block; }
+
+        /* Loading */
+        .loader {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+        }
+        .loader.show { display: flex; }
+
+        .dot {
+            width: 6px; height: 6px;
+            background: #a78bfa;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Result */
+        .result-box {
+            background: rgba(167,139,250,0.06);
+            border: 1px solid rgba(167,139,250,0.25);
+            border-radius: 16px;
+            padding: 24px;
+            display: none;
+            animation: fadeSlideUp 0.4s ease;
+        }
+        .result-box.show { display: block; }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+        }
+
+        .short-link {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #c4b5fd;
+            margin-bottom: 18px;
+            word-break: break-all;
+            filter: drop-shadow(0 0 12px rgba(196,181,253,0.3));
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+        }
+
+        .action-btn:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 16px 12px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* History */
+        .history-section {
+            width: 100%;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .history-title {
+            font-size: 11px;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        .history-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            background: rgba(167,139,250,0.07);
+            border-color: rgba(167,139,250,0.2);
+            transform: translateX(4px);
+        }
+
+        .h-short {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #a78bfa;
+        }
+
+        .h-long {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.3);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .h-copy {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover .h-copy {
+            color: #a78bfa;
+            border-color: rgba(167,139,250,0.3);
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="galaxy"></canvas>
+
+<div class="content">
+    <div class="logo">⚡ Shortly</div>
+    <p class="tagline">Transform long links into powerful short URLs</p>
+
+    <div class="glass">
+        <div class="input-row">
+            <input class="url-input" id="urlInput" type="url" placeholder="Paste your long URL here..." />
+            <button class="shorten-btn" id="btn" onclick="shortenUrl()">Shorten →</button>
+        </div>
+
+        <div class="error-box" id="err"></div>
+
+        <div class="loader" id="loader">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span>Generating your link...</span>
+        </div>
+
+        <div class="result-box" id="result">
+            <div class="result-label">✦ Your short link is ready</div>
+            <div class="short-link" id="shortLink"></div>
+            <div class="action-btns">
+                <button class="action-btn" onclick="copyLink()">📋 Copy Link</button>
+                <button class="action-btn" onclick="visitLink()">🔗 Open Link</button>
+            </div>
+            <div class="divider"></div>
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-val" id="sClicks">0</div>
+                    <div class="stat-lbl">Clicks</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val" id="sDays">30</div>
+                    <div class="stat-lbl">Days left</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val" id="sCode">—</div>
+                    <div class="stat-lbl">Short code</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-section" id="historySec">
+        <p class="history-title">✦ Recent links</p>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<script>
+    // ── Galaxy Animation ──────────────────────────────────────────
+    const canvas = document.getElementById('galaxy');
+    const ctx = canvas.getContext('2d');
+    let W, H, stars = [], nebulae = [];
+
+    function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    }
+
+    function initStars() {
+        stars = [];
+        for (let i = 0; i < 320; i++) {
+            stars.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                r: Math.random() * 1.6 + 0.2,
+                speed: Math.random() * 0.12 + 0.02,
+                angle: Math.random() * Math.PI * 2,
+                twinkle: Math.random() * Math.PI * 2,
+                twinkleSpeed: Math.random() * 0.03 + 0.01,
+                color: ['#ffffff','#c4b5fd','#93c5fd','#f9a8d4'][Math.floor(Math.random()*4)]
+            });
+        }
+        nebulae = [];
+        const colors = [
+            ['#7c3aed','#4f46e5'],
+            ['#db2777','#7c3aed'],
+            ['#1d4ed8','#0891b2'],
+            ['#065f46','#1d4ed8']
+        ];
+        for (let i = 0; i < 5; i++) {
+            const c = colors[i % colors.length];
+            nebulae.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                r: Math.random() * 220 + 140,
+                c1: c[0], c2: c[1],
+                vx: (Math.random() - 0.5) * 0.15,
+                vy: (Math.random() - 0.5) * 0.15,
+                opacity: Math.random() * 0.12 + 0.05
+            });
+        }
+    }
+
+    const cx = () => W / 2;
+    const cy = () => H / 2;
+
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        // Deep space background
+        const bg = ctx.createRadialGradient(cx(), cy(), 0, cx(), cy(), Math.max(W, H));
+        bg.addColorStop(0, '#06001a');
+        bg.addColorStop(1, '#000005');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Nebulae
+        nebulae.forEach(n => {
+            n.x += n.vx; n.y += n.vy;
+            if (n.x < -n.r) n.x = W + n.r;
+            if (n.x > W + n.r) n.x = -n.r;
+            if (n.y < -n.r) n.y = H + n.r;
+            if (n.y > H + n.r) n.y = -n.r;
+
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+            g.addColorStop(0, n.c1 + '40');
+            g.addColorStop(0.5, n.c2 + '18');
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Galaxy core glow
+        const core = ctx.createRadialGradient(cx(), cy(), 0, cx(), cy(), Math.min(W, H) * 0.35);
+        core.addColorStop(0, 'rgba(124,58,237,0.12)');
+        core.addColorStop(0.5, 'rgba(79,70,229,0.05)');
+        core.addColorStop(1, 'transparent');
+        ctx.fillStyle = core;
+        ctx.fillRect(0, 0, W, H);
+
+        // Stars
+        const t = Date.now() * 0.001;
+        stars.forEach(s => {
+            s.twinkle += s.twinkleSpeed;
+            const alpha = 0.4 + 0.6 * Math.abs(Math.sin(s.twinkle));
+
+            // Slow orbital drift
+            s.angle += s.speed * 0.002;
+            const drift = 0.3;
+            s.x += Math.cos(s.angle) * drift * s.speed;
+            s.y += Math.sin(s.angle) * drift * s.speed;
+
+            if (s.x < 0) s.x = W;
+            if (s.x > W) s.x = 0;
+            if (s.y < 0) s.y = H;
+            if (s.y > H) s.y = 0;
+
+            // Glow
+            const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 3);
+            glow.addColorStop(0, s.color + Math.floor(alpha * 99).toString(16).padStart(2,'0'));
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Core
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        });
+
+        // Shooting star occasionally
+        if (Math.random() < 0.003) shootingStar();
+
+        requestAnimationFrame(draw);
+    }
+
+    function shootingStar() {
+        const x = Math.random() * W;
+        const y = Math.random() * H * 0.5;
+        const len = Math.random() * 120 + 60;
+        const angle = Math.PI / 6;
+        const g = ctx.createLinearGradient(x, y, x + len * Math.cos(angle), y + len * Math.sin(angle));
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.3, 'rgba(196,181,253,0.9)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + len * Math.cos(angle), y + len * Math.sin(angle));
+        ctx.stroke();
+    }
+
+    resize();
+    initStars();
+    draw();
+    window.addEventListener('resize', () => { resize(); initStars(); });
+
+    // ── URL Shortener Logic ───────────────────────────────────────
+    let linkHistory = [];
+    let currentShortUrl = '';
+
+    async function shortenUrl() {
+        const input = document.getElementById('urlInput');
+        const url = input.value.trim();
+
+        if (!url) return showErr('Please enter a URL');
+        if (!url.startsWith('http://') && !url.startsWith('https://'))
+            return showErr('URL must start with http:// or https://');
+
+        setLoading(true);
+        hideErr();
+        hideResult();
+
+        try {
+            const res = await fetch('/api/shorten', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ longUrl: url })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Something went wrong');
+
+            currentShortUrl = data.shortUrl;
+            showResult(data, url);
+            addHistory(data, url);
+
+        } catch (e) {
+            showErr(e.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function showResult(data, original) {
+        document.getElementById('shortLink').textContent = data.shortUrl;
+        document.getElementById('sClicks').textContent = '0';
+        document.getElementById('sCode').textContent = data.shortCode;
+
+        const days = Math.ceil((new Date(data.expiresAt) - new Date()) / 86400000);
+        document.getElementById('sDays').textContent = days;
+
+        document.getElementById('result').classList.add('show');
+    }
+
+    function copyLink() {
+        navigator.clipboard.writeText(currentShortUrl);
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    function visitLink() {
+        window.open(currentShortUrl, '_blank');
+    }
+
+    function addHistory(data, original) {
+        linkHistory.unshift({ short: data.shortUrl, long: original, code: data.shortCode });
+        if (linkHistory.length > 5) linkHistory.pop();
+
+        const sec = document.getElementById('historySec');
+        const list = document.getElementById('historyList');
+        sec.style.display = 'block';
+
+        list.innerHTML = linkHistory.map(h => `
+        <div class="history-item" onclick="navigator.clipboard.writeText('${h.short}')">
+            <div>
+                <div class="h-short">${h.short}</div>
+                <div class="h-long">${h.long}</div>
+            </div>
+            <span class="h-copy">Copy</span>
+        </div>
+    `).join('');
+    }
+
+    function setLoading(on) {
+        document.getElementById('loader').classList.toggle('show', on);
+        document.getElementById('btn').disabled = on;
+    }
+
+    function showErr(msg) {
+        const el = document.getElementById('err');
+        el.textContent = '⚠ ' + msg;
+        el.classList.add('show');
+    }
+
+    function hideErr() { document.getElementById('err').classList.remove('show'); }
+    function hideResult() { document.getElementById('result').classList.remove('show'); }
+
+    document.getElementById('urlInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter') shortenUrl();
+    });
+</script>
+</body>
+</html>
