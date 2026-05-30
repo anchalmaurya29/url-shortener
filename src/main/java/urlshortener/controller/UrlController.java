@@ -22,7 +22,10 @@ public class UrlController {
     private final UrlService urlService;
 
     @PostMapping("/api/shorten")
-    public ResponseEntity<?> shortenUrl(@RequestBody @Valid ShortenRequest request) {
+    public ResponseEntity<?> shortenUrl(
+            @RequestBody @Valid ShortenRequest request,
+            @RequestHeader(value = "Host", defaultValue = "localhost:8080") String host,
+            @RequestHeader(value = "X-Forwarded-Proto", defaultValue = "http") String proto) {
         try {
             Url url;
             if (request.customAlias() != null && !request.customAlias().isBlank()) {
@@ -31,9 +34,10 @@ public class UrlController {
                 url = urlService.createShortUrl(request.longUrl());
             }
 
+            String baseUrl = proto + "://" + host;
             return ResponseEntity.ok(Map.of(
                     "shortCode", url.getShortCode(),
-                    "shortUrl", "http://localhost:8080/" + url.getShortCode(),
+                    "shortUrl", baseUrl + "/" + url.getShortCode(),
                     "longUrl", url.getLongUrl(),
                     "expiresAt", url.getExpiresAt()
             ));
